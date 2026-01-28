@@ -13,6 +13,12 @@ def index():
     # Landing Page
     return render_template('index.html')
 
+@app.route('/setup')
+def setup():
+    # Setup Page
+    # Only access if logged in (add logic later)
+    return render_template('setup.html')
+
 @app.route('/auth')
 def auth():
     # Authentication Page
@@ -20,6 +26,7 @@ def auth():
 
 @app.route('/dashboard')
 def dashboard():
+    # Dashboard Page
     # Only access if logged in (add logic later)
     return render_template('dashboard.html')
 
