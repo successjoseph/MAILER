@@ -10,8 +10,6 @@ from engine import MailerAI, fetch_unread_emails, create_gmail_draft
 # Load variables from .env
 load_dotenv()
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
 # Google OAuth2 Scopes - Needs Gmail modify + User Info
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.modify',
