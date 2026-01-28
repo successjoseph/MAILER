@@ -1,4 +1,6 @@
 flask
 groq
 dotenv
-firebase
+firebase_admin
+smtplib
+google_python
