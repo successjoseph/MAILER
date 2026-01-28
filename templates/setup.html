@@ -13,12 +13,6 @@
             backdrop-filter: blur(12px); 
             border: 1px solid rgba(255, 255, 255, 0.05); 
         }
-        .step-node {
-            @apply w-10 h-10 rounded-full border border-white/10 flex items-center justify-center font-bold text-sm transition-all;
-        }
-        .step-active {
-            @apply border-indigo-500 bg-indigo-600 text-white shadow-lg shadow-indigo-500/20;
-        }
     </style>
 </head>
 <body class="text-gray-200 antialiased min-h-screen pb-20">
@@ -40,7 +34,7 @@
         
 
         <div class="glass-card p-10 rounded-3xl shadow-2xl">
-            <form action="/save-manifesto" method="POST" class="space-y-12">
+            <form action="/setup" method="POST" class="space-y-12">
                 
                 <section>
                     <h2 class="text-2xl font-bold text-white mb-2">1. Connect Your Mail</h2>
@@ -72,7 +66,7 @@
                     <div class="space-y-6">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">Instructions & Tone</label>
-                            <textarea name="manifesto" rows="6" class="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-white placeholder-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition text-sm leading-relaxed" placeholder="e.g., You are my name, you are a personal assistant. Be brief, use a friendly yet formal tone, and always prioritize meeting requests. If someone asks for a file, tell them I will get back to them personally."></textarea>
+                            <textarea name="manifesto" rows="6" class="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-white placeholder-gray-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition text-sm leading-relaxed" placeholder="e.g., You are my name, you are a personal assistant. Be brief, use a friendly yet formal tone, and always prioritize meeting requests. If someone asks for a file, tell them I will get back to them personally.">{{manifesto}}</textarea>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
