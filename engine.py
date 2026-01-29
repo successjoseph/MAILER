@@ -3,10 +3,6 @@ from groq import Groq
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import smtplib
-from email.mime.text import MIMEText
-from email.message import EmailMessage
-import base64
 
 load_dotenv()
 

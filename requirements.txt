@@ -1,6 +1,8 @@
 flask
 groq
+gunicorn
 dotenv
 firebase_admin
-smtplib
-google_python
+firebase-admin
+google-auth-oauthlib
+google-api-python-client
