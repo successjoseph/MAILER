@@ -3,11 +3,25 @@ from google.auth.transport import requests
 import firebase_admin
 from firebase_admin import firestore, credentials
 import os
+import json
 
 # Initialize Firebase Admin
-# Note: You'll need the 'serviceAccountKey.json' from Firebase Console
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
+if not firebase_admin._apps:
+    # 1. Try to get JSON string from Environment Variable (Best for Cloud)
+    service_account_json = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON")
+    
+    if service_account_json:
+        # Load from string
+        cred_dict = json.loads(service_account_json)
+        cred = credentials.Certificate(cred_dict)
+    elif os.path.exists("serviceAccountKey.json"):
+        # 2. Fallback to local file (Best for Dev)
+        cred = credentials.Certificate("serviceAccountKey.json")
+    else:
+        # 3. Fail gracefully if nothing is found
+        raise Exception("Firebase credentials missing from Environment and File.")
+
+    firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 def verify_and_store_user(creds):
