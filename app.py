@@ -133,27 +133,37 @@ def callback():
     
     return redirect(url_for('dashboard'))
 
-@app.route('/scan')
+@@app.route('/scan')
 def scan_emails():
-    if 'user_id' not in session:
-        return redirect(url_for('login_page'))
+    if 'user_id' not in session: return redirect(url_for('login_page'))
     
     user_config = get_user_config(session['user_id'])
     ai = MailerAI()
     threads = fetch_unread_emails(user_config)
     
+    if not threads:
+        # Log that no emails were found so the user isn't confused
+        add_activity_log(session['user_id'], "System Scan", "N/A", "No unread threads found")
+        return redirect(url_for('dashboard'))
+    
     for thread in threads:
+        # 1. AI Drafts the content
         draft_content = ai.draft_response(user_config.get('manifesto'), thread['body'])
-        d_id = create_gmail_draft(user_config, thread['id'], draft_content) 
-
-        # Corrected: Removed content=draft_content
-        add_activity_log(
-            session['user_id'], 
+        
+        # 2. Create the actual Draft in Gmail
+        # We now pass thread['subject'] and thread['recipient']
+        success = create_gmail_draft(
+            user_config, 
+            thread['id'], 
+            draft_content, 
             thread['subject'], 
-            "Inbound Email", 
-            "AI Draft Created",
-            draft_id=d_id
+            thread.get('recipient', 'Unknown')
         )
+        
+        if success:
+            add_activity_log(session['user_id'], thread['subject'], "Inbound Email", "Draft Created")
+        else:
+            add_activity_log(session['user_id'], thread['subject'], "Inbound Email", "Draft Failed")
         
     return redirect(url_for('dashboard'))
 
