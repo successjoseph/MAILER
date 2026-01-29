@@ -133,7 +133,7 @@ def callback():
     
     return redirect(url_for('dashboard'))
 
-@@app.route('/scan')
+@app.route('/scan')
 def scan_emails():
     if 'user_id' not in session: return redirect(url_for('login_page'))
     
