@@ -62,8 +62,8 @@ def fetch_unread_emails(user_config):
         })
     return threads
 
-def create_gmail_draft(user_config, thread_id, draft_body):
-    """Creates a draft in the user's Gmail inbox."""
+def create_gmail_draft(user_config, thread_id, draft_body, subject, recipient):
+    """Creates a draft in the user's Gmail inbox for review."""
     creds = Credentials(
         token=None,
         refresh_token=user_config['refresh_token'],
@@ -73,12 +73,13 @@ def create_gmail_draft(user_config, thread_id, draft_body):
     )
     service = build('gmail', 'v1', credentials=creds)
     
-    # Construct the raw RFC 2822 message
+    # Create the email message with headers
     message = EmailMessage()
     message.set_content(draft_body)
-    # Note: We use the thread_id to keep it in the same conversation
+    message['Subject'] = f"Re: {subject}"
+    message['To'] = recipient
     
-    # Gmail API expects a base64url encoded string
+    # Encode for Gmail API
     raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
     
     draft_object = {
@@ -87,11 +88,13 @@ def create_gmail_draft(user_config, thread_id, draft_body):
             'raw': raw_message
         }
     }
+    
     try:
-        draft = service.users().drafts().create(userId='me', body=draft_object).execute()
-        return draft['id']
+        service.users().drafts().create(userId='me', body=draft_object).execute()
+        return True
     except Exception as e:
-        return None
+        print(f"Draft Creation Failed: {e}")
+        return False
     
 def get_gmail_draft_content(user_config, draft_id):
     """Fetches draft body from Gmail on demand."""
