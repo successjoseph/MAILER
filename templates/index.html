@@ -19,7 +19,7 @@
                 <div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">M</div>
                 <span class="font-bold tracking-tight text-xl text-white">MAILER</span>
             </div>
-            <a href="/dashboard" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-indigo-500/10">
+            <a href="{{ url_for('auth_google')}}" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-indigo-500/10">
                 GET STARTED
             </a>
         </div>
@@ -41,7 +41,7 @@
             exactly how you would—so you can focus on work that actually matters.
         </p>
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="/setup" class="w-full sm:w-auto px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition text-lg shadow-xl shadow-indigo-500/20">
+            <a href="{{ url_for('setup')}}" class="w-full sm:w-auto px-10 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition text-lg shadow-xl shadow-indigo-500/20">
                 Get Started for Free
             </a>
             <a href="#how-it-works" class="w-full sm:w-auto px-10 py-4 border border-white/10 hover:bg-white/5 text-gray-300 font-bold rounded-xl transition text-lg">
