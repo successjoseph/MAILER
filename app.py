@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 from firebase_admin import firestore
 from google_auth_oauthlib.flow import Flow
 from database import get_user_config, verify_and_store_user, get_activity_logs, save_user_manifesto, add_activity_log
-from engine import MailerAI, fetch_unread_emails, create_gmail_draft
+from engine import MailerAI, fetch_unread_emails, create_gmail_draft, get_gmail_draft_content, send_gmail_draft
 
 # Load variables from .env
 load_dotenv()
 
-# Google OAuth2 Scopes - Needs Gmail modify + User Info
+# Google OAuth2 Scopes
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.modify',
     'openid',
@@ -17,14 +17,16 @@ SCOPES = [
     'https://www.googleapis.com/auth/userinfo.profile'
 ]
 
-# Google OAuth2 Config
+# Dynamic Redirect URI from Environment for local/prod flexibility
+REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://127.0.0.1:5000/callback")
+
 GOOGLE_CLIENT_CONFIG = {
     "web": {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
         "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
         "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": [os.getenv("GOOGLE_REDIRECT_URI")]
+        "redirect_uris": [REDIRECT_URI]
     }
 }
 
@@ -33,7 +35,6 @@ app.secret_key = os.getenv("SECRET_KEY", "dev_secret_key")
 
 @app.route('/')
 def index():
-    # Landing Page
     return render_template('index.html')
 
 @app.route('/setup', methods=['GET', 'POST'])
@@ -42,39 +43,46 @@ def setup():
         return redirect(url_for('login_page'))
     
     if request.method == 'POST':
-        # Grab data from the form
         manifesto = request.form.get('manifesto')
         duration = request.form.get('duration')
         user_id = session['user_id']
         
-        # Save to Firestore via database.py
         save_user_manifesto(user_id, manifesto, duration)
-        
-        # Redirect to dashboard once configured
         return redirect(url_for('dashboard'))
-        
-    return render_template('setup.html')
+    
+    # Pre-fill settings from Firebase
+    user_config = get_user_config(session['user_id'])
+    return render_template('setup.html', config=user_config or {})
 
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login_page'))
     
-    # Fetch the full config to get the manifesto
     user_config = get_user_config(session['user_id'])
     if not user_config:
         return redirect(url_for('setup'))
     
-    # Extract info for the UI
+    # Handle "Load More" logic via query param
+    limit = int(request.args.get('limit', 5))
+    logs = get_activity_logs(session['user_id'], limit=limit)
+    
+    # Stats Calculation (Fetch a larger set to calculate totals)
+    # Note: In a large production app, we'd use aggregation, but this works for POC
+    stat_logs = get_activity_logs(session['user_id'], limit=100)
+    stats = {
+        'triaged': len(stat_logs),
+        'drafts': len([l for l in stat_logs if "Draft" in l.get('action', '')]),
+        'pending': len([l for l in stat_logs if "Inbound" in l.get('action', '')])
+    }
+    
     name = user_config.get('name', 'User')
     initial = name[0].upper() if name else 'U'
-    manifesto = user_config.get('manifesto', 'No manifesto defined.')
-    logs = get_activity_logs(session['user_id'])
-    return render_template('dashboard.html', logs=logs, initial=initial, name=name, manifesto=manifesto)
+    manifesto = user_config.get('manifesto', 'No manifesto defined.')    
+    return render_template('dashboard.html', logs=logs, initial=initial, name=name, manifesto=manifesto, stats=stats, current_limit=limit)
 
 @app.route('/auth')
 def auth():
-    # Authentication Page
     return render_template('auth.html')
 
 @app.route('/login')
@@ -83,21 +91,34 @@ def login_page():
 
 @app.route('/auth/google')
 def auth_google():
-    """Initiates the backend OAuth2 flow."""
-    flow = Flow.from_client_config(
-        GOOGLE_CLIENT_CONFIG,
-        scopes=SCOPES
-    )
+    flow = Flow.from_client_config(GOOGLE_CLIENT_CONFIG, scopes=SCOPES)
     flow.redirect_uri = url_for('callback', _external=True)
-    
-    # access_type='offline' is critical for getting the Refresh Token
-    auth_url, state = flow.authorization_url(access_type='offline', prompt='consent')
+    # Change 'consent' to 'select_account' to avoid repeated permissions warnings
+    auth_url, state = flow.authorization_url(access_type='offline', prompt='select_account')
     session['state'] = state
     return redirect(auth_url)
 
+@app.route('/auth/email', methods=['POST'])
+def auth_email():
+    email = request.form.get('email')
+    password = request.form.get('password') # In prod, use hashing!
+    
+    from database import db
+    user_ref = db.collection('users').where('email', '==', email).limit(1).get()
+    
+    if not user_ref:
+        uid = f"local_{email.split('@')[0]}"
+        user_info = {'uid': uid, 'email': email, 'name': email.split('@')[0]}
+        db.collection('users').document(uid).set(user_info)
+        session['user_id'] = uid
+    else:
+        session['user_id'] = user_ref[0].id
+        
+    session['email'] = email
+    return redirect(url_for('dashboard'))
+
 @app.route('/callback')
 def callback():
-    """Handles the redirect, saves tokens, and creates a session."""
     flow = Flow.from_client_config(
         GOOGLE_CLIENT_CONFIG,
         scopes=SCOPES,
@@ -106,17 +127,11 @@ def callback():
     flow.redirect_uri = url_for('callback', _external=True)
     flow.fetch_token(authorization_response=request.url)
     
-    creds = flow.credentials
-    
-    # Store user and tokens in Firestore via database.py
-    user_info = verify_and_store_user(creds) 
-    
-    # Create the Python session
+    user_info = verify_and_store_user(flow.credentials) 
     session['user_id'] = user_info['uid']
     session['email'] = user_info['email']
     
-    return redirect(url_for('setup'))
-
+    return redirect(url_for('dashboard'))
 
 @app.route('/scan')
 def scan_emails():
@@ -125,37 +140,58 @@ def scan_emails():
     
     user_config = get_user_config(session['user_id'])
     ai = MailerAI()
-    
-    # 1. Fetch unread threads using your Refresh Token
     threads = fetch_unread_emails(user_config)
     
     for thread in threads:
-        # 2. Draft response based on your Manifesto
         draft_content = ai.draft_response(user_config.get('manifesto'), thread['body'])
-        create_gmail_draft(user_config, thread['id'], draft_content) 
+        d_id = create_gmail_draft(user_config, thread['id'], draft_content) 
 
-        # 3. Log it so it shows up on the dashboard
+        # Corrected: Removed content=draft_content
         add_activity_log(
             session['user_id'], 
             thread['subject'], 
             "Inbound Email", 
-            "AI Draft Created"
+            "AI Draft Created",
+            draft_id=d_id
         )
         
     return redirect(url_for('dashboard'))
 
 @app.route('/api/chat', methods=['POST'])
 def ai_chat():
-    if 'user_id' not in session: return {"error": "Unauthorized"}, 401
+    if 'user_id' not in session: 
+        return {"error": "Unauthorized"}, 401
     
     user_query = request.json.get('query')
-    recent_logs = get_activity_logs(session['user_id'])[:10]
+    # Use context of last 10 logs for the AI bubble
+    recent_logs = get_activity_logs(session['user_id'], limit=10)
     
     ai = MailerAI()
     response = ai.ai_bubble_chat(user_query, recent_logs)
     return {"response": response}
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
 
+@app.route('/api/get_draft/<draft_id>')
+def api_get_draft(draft_id):
+    if 'user_id' not in session: return {"error": "Auth required"}, 401
+    user_config = get_user_config(session['user_id'])
+    # Corrected: Call function directly
+    content = get_gmail_draft_content(user_config, draft_id) 
+    return {"content": content}
+
+@app.route('/api/send_draft', methods=['POST'])
+def api_send_draft():
+    if 'user_id' not in session: return {"error": "Auth required"}, 401
+    draft_id = request.json.get('draftId')
+    user_config = get_user_config(session['user_id'])
+    from engine import send_gmail_draft
+    if send_gmail_draft(user_config, draft_id):
+        return {"success": True}
+    return {"error": "Send failed"}, 500
 
 if __name__ == '__main__':
     app.run(debug=True)

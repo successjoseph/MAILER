@@ -3,6 +3,8 @@ from groq import Groq
 from dotenv import load_dotenv
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from email.message import EmailMessage
+import base64
 
 load_dotenv()
 
@@ -34,9 +36,11 @@ def fetch_unread_emails(user_config):
     messages = results.get('messages', [])
     
     threads = []
-    for msg in messages[:10]: # Increased limit, but we filter more strictly now
+    for msg in messages[:10]:
         t_data = service.users().threads().get(userId='me', id=msg['threadId']).execute()
-        first_msg = t_data['messages'][0]
+        msgs = t_data.get('messages', [])
+        if not msgs: continue # Skip empty threads
+        first_msg = msgs[0]
         headers = first_msg['payload']['headers']
         
         # 2. Header-Level Stopper
@@ -83,14 +87,40 @@ def create_gmail_draft(user_config, thread_id, draft_body):
             'raw': raw_message
         }
     }
-
     try:
-        service.users().drafts().create(userId='me', body=draft_object).execute()
-        return True
+        draft = service.users().drafts().create(userId='me', body=draft_object).execute()
+        return draft['id']
     except Exception as e:
-        print(f"Draft Error: {e}")
-        return False
+        return None
+    
+def get_gmail_draft_content(user_config, draft_id):
+    """Fetches draft body from Gmail on demand."""
+    creds = Credentials(
+        token=None, refresh_token=user_config['refresh_token'],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.getenv("GOOGLE_CLIENT_ID"), client_secret=os.getenv("GOOGLE_CLIENT_SECRET")
+    )
+    service = build('gmail', 'v1', credentials=creds)
+    try:
+        draft = service.users().drafts().get(userId='me', id=draft_id).execute()
+        return draft['message'].get('snippet', 'No content.')
+    except:
+        return "Error: Could not fetch draft."
 
+def send_gmail_draft(user_config, draft_id):
+    """Sends a specific Gmail draft."""
+    creds = Credentials(
+        token=None, refresh_token=user_config['refresh_token'],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.getenv("GOOGLE_CLIENT_ID"), client_secret=os.getenv("GOOGLE_CLIENT_SECRET")
+    )
+    service = build('gmail', 'v1', credentials=creds)
+    try:
+        service.users().drafts().send(userId='me', body={'id': draft_id}).execute()
+        return True
+    except:
+        return False
+    
 class MailerAI:
     def __init__(self):
         # Initialize the Groq client with the Llama-3.3-70b-versatile model

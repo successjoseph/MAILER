@@ -3,6 +3,5 @@ groq
 gunicorn
 dotenv
 firebase_admin
-firebase-admin
 google-auth-oauthlib
 google-api-python-client
