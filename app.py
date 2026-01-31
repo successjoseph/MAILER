@@ -8,6 +8,7 @@ from engine import MailerAI, fetch_unread_emails, create_gmail_draft, get_gmail_
 
 # Load variables from .env
 load_dotenv()
+
 # Google OAuth2 Scopes
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.modify',
