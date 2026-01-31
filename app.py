@@ -8,7 +8,6 @@ from engine import MailerAI, fetch_unread_emails, create_gmail_draft, get_gmail_
 
 # Load variables from .env
 load_dotenv()
-
 # Google OAuth2 Scopes
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.modify',
@@ -68,18 +67,20 @@ def dashboard():
     logs = get_activity_logs(session['user_id'], limit=limit)
     
     # Stats Calculation (Fetch a larger set to calculate totals)
-    # Note: In a large production app, we'd use aggregation, but this works for POC
     stat_logs = get_activity_logs(session['user_id'], limit=100)
     stats = {
         'triaged': len(stat_logs),
         'drafts': len([l for l in stat_logs if "Draft" in l.get('action', '')]),
         'pending': len([l for l in stat_logs if "Inbound" in l.get('action', '')])
     }
+
+    ai = MailerAI()
+    report = ai.generate_brief_report(stat_logs) if stat_logs else "No activity to summarize yet."
     
     name = user_config.get('name', 'User')
     initial = name[0].upper() if name else 'U'
     manifesto = user_config.get('manifesto', 'No manifesto defined.')    
-    return render_template('dashboard.html', logs=logs, initial=initial, name=name, manifesto=manifesto, stats=stats, current_limit=limit)
+    return render_template('dashboard.html', logs=logs, initial=initial, name=name, manifesto=manifesto, stats=stats, current_limit=limit, report=report)
 
 @app.route('/auth')
 def auth():
@@ -93,8 +94,25 @@ def login_page():
 def auth_google():
     flow = Flow.from_client_config(GOOGLE_CLIENT_CONFIG, scopes=SCOPES)
     flow.redirect_uri = url_for('callback', _external=True)
-    # Change 'consent' to 'select_account' to avoid repeated permissions warnings
-    auth_url, state = flow.authorization_url(access_type='offline', prompt='select_account')
+    
+    # Logic Clause: Check if we already have a refresh token for this user
+    # Note: Since 'user_id' might not be in session during a fresh login, 
+    # we usually default to 'select_account' unless we know they need a token.
+    # To be safe, we can use 'select_account' but provide a "Re-authorize" button 
+    # on the dashboard if things break.
+    
+    prompt_type = 'select_account'
+    
+    # If you have the user's email or ID in session from a previous step:
+    if 'user_id' in session:
+        user_config = get_user_config(session['user_id'])
+        if not user_config or not user_config.get('refresh_token'):
+            prompt_type = 'consent'
+
+    auth_url, state = flow.authorization_url(
+        access_type='offline', 
+        prompt=prompt_type
+    )
     session['state'] = state
     return redirect(auth_url)
 
@@ -133,27 +151,38 @@ def callback():
     
     return redirect(url_for('dashboard'))
 
+# MAILER/app.py
+
 @app.route('/scan')
 def scan_emails():
     if 'user_id' not in session:
         return redirect(url_for('login_page'))
     
     user_config = get_user_config(session['user_id'])
-    ai = MailerAI()
-    threads = fetch_unread_emails(user_config)
     
-    for thread in threads:
-        draft_content = ai.draft_response(user_config.get('manifesto'), thread['body'])
-        d_id = create_gmail_draft(user_config, thread['id'], draft_content) 
-
-        # Corrected: Removed content=draft_content
-        add_activity_log(
-            session['user_id'], 
-            thread['subject'], 
-            "Inbound Email", 
-            "AI Draft Created",
-            draft_id=d_id
-        )
+    # ERROR PREVENTION: Logic clause to check token existence
+    if not user_config or not user_config.get('refresh_token'):
+        # Redirect to auth with forced consent because token is missing
+        return redirect(url_for('auth_google'))
+    
+    ai = MailerAI()
+    try:
+        threads = fetch_unread_emails(user_config)
+        for thread in threads:
+            draft_content = ai.draft_response(user_config.get('manifesto'), thread['body'])
+            d_id = create_gmail_draft(user_config, thread['id'], draft_content) 
+            
+            if d_id:
+                add_activity_log(
+                    session['user_id'], 
+                    thread['subject'], 
+                    "Inbound Email", 
+                    "AI Draft Created",
+                    draft_id=d_id
+                )
+    except Exception as e:
+        # Catch the RefreshError here if the token is revoked/invalid
+        return f"Authentication error: {str(e)}. Please try logging in again.", 401
         
     return redirect(url_for('dashboard'))
 

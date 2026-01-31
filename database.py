@@ -2,6 +2,8 @@ import json
 import os
 import firebase_admin
 from firebase_admin import firestore, credentials
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 # Initialize Firebase Admin
 if not firebase_admin._apps:
@@ -23,8 +25,6 @@ db = firestore.client()
 
 def verify_and_store_user(creds):
     """Verifies the Google ID and saves the Refresh Token to Firestore."""
-    from google.oauth2 import id_token
-    from google.auth.transport import requests
     
     id_info = id_token.verify_oauth2_token(
         creds.id_token, requests.Request(), os.getenv("GOOGLE_CLIENT_ID")
@@ -37,9 +37,11 @@ def verify_and_store_user(creds):
         'uid': uid,
         'email': email,
         'name': id_info.get('name'),
-        'refresh_token': creds.refresh_token,
-        'last_login': firestore.SERVER_TIMESTAMP
+        'last_login': firestore.SERVER_TIMESTAMP # type: ignore
     }
+
+    if creds.refresh_token:
+        user_data['refresh_token'] = creds.refresh_token
     
     db.collection('users').document(uid).set(user_data, merge=True)
     return user_data
@@ -59,7 +61,7 @@ def get_activity_logs(user_id, limit=5):
     """Retrieves summaries of past AI actions with sorting and limits."""
     logs_ref = db.collection('users').document(user_id).collection('logs')
     # Order by newest first
-    query = logs_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit)
+    query = logs_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(limit) # type: ignore
     return [log.to_dict() for log in query.stream()]
 
 def add_activity_log(user_id, subject, recipient, action, draft_id=None):
@@ -69,7 +71,7 @@ def add_activity_log(user_id, subject, recipient, action, draft_id=None):
         'recipient': recipient,
         'action': action,
         'draft_id': draft_id, # The only identifier we need
-        'timestamp': firestore.SERVER_TIMESTAMP
+        'timestamp': firestore.SERVER_TIMESTAMP # type: ignore
     }
     db.collection('users').document(user_id).collection('logs').add(log_data)
 
@@ -77,8 +79,3 @@ def get_user_config(user_id):
     """Retrieves user manifesto and tokens for the background worker."""
     doc = db.collection('users').document(user_id).get()
     return doc.to_dict() if doc.exists else None
-
-def update_user_tokens(user_id, tokens):
-    """Securely stores Google Refresh Tokens in Firestore."""
-    doc_ref = db.collection('users').document(user_id)
-    doc_ref.set({'google_tokens': tokens}, merge=True)

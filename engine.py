@@ -41,9 +41,9 @@ def fetch_unread_emails(user_config):
         msgs = t_data.get('messages', [])
         if not msgs: continue # Skip empty threads
         first_msg = msgs[0]
+        payload = first_msg.get('payload', {})
         headers = first_msg['payload']['headers']
         
-        # 2. Header-Level Stopper
         # Checks if the email is marked as 'auto-generated' or has an unsubscribe link
         is_automated = any(
             h['name'].lower() in ['auto-submitted', 'list-unsubscribe', 'precedence'] 
@@ -52,21 +52,42 @@ def fetch_unread_emails(user_config):
         
         if is_automated:
             continue # Skip this mail, it's a bot or a newsletter
-            
-        subject = next(h['value'] for h in headers if h['name'] == 'Subject')
+          # In engine.py -> fetch_unread_emails
+
+        subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), "(No Subject)")
         
         threads.append({
             'id': msg['threadId'],
             'subject': subject,
-            'body': first_msg['snippet']
+            'body': get_full_body(first_msg['payload']) or first_msg['snippet'] # Fallback to snippet
         })
-    return threads
+        return threads
+
+def get_full_body(payload):
+    """Recursively extracts plain text from Gmail payload."""
+    if not payload: 
+        return ""
+    if payload.get('mimeType') == 'text/plain':
+        data = payload.get('body', {}).get('data')
+        if data:
+            return base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
+    parts = payload.get('parts') or []
+    for part in parts:
+        body = get_full_body(part)
+        if body:
+            return body
+    return ""
 
 def create_gmail_draft(user_config, thread_id, draft_body):
     """Creates a draft in the user's Gmail inbox."""
+
+    refresh_token = user_config.get('refresh_token')
+    if not refresh_token:
+        raise ValueError("Missing refresh_token in user configuration.")
+    
     creds = Credentials(
         token=None,
-        refresh_token=user_config['refresh_token'],
+        refresh_token=refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=os.getenv("GOOGLE_CLIENT_ID"),
         client_secret=os.getenv("GOOGLE_CLIENT_SECRET")
@@ -103,7 +124,7 @@ def get_gmail_draft_content(user_config, draft_id):
     service = build('gmail', 'v1', credentials=creds)
     try:
         draft = service.users().drafts().get(userId='me', id=draft_id).execute()
-        return draft['message'].get('snippet', 'No content.')
+        return get_full_body(draft['message']['payload']) or draft['message'].get('snippet', 'No content.')
     except:
         return "Error: Could not fetch draft."
 
@@ -129,15 +150,30 @@ class MailerAI:
 
     def draft_response(self, manifesto, email_content):
         """
-        Uses the Manifesto to generate a contextual email reply.
+        Uses the Manifesto with strict guardrails to generate professional replies.
         """
-        system_prompt = f"You are an AI Email Assistant. Strictly follow this Manifesto for persona, tone, and logic: {manifesto}"
-        
+        system_prompt = (
+            f"You are an AI Email Assistant acting on behalf of the user. "
+            f"STRICTLY follow this Manifesto for persona and tone: {manifesto}\n\n"
+            "RULES:\n"
+            "1. DO NOT repeat or echo sensitive links (verification links, password resets) back to the sender.\n"
+            "2. Do not explain the email to the sender; they sent it, they know what it says.\n"
+            "3. Be concise and action-oriented. If a link was sent to you, just confirm you received it or will use it.\n"
+            "4. Never use placeholders like '[Your Name]' if the Manifesto provides a name."
+        )       
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Draft a response to this email:\n\n{email_content}"}
+                {
+                    "role": "user", 
+                    "content": (
+                        f"Here is an inbound email:\n---\n{email_content}\n---\n"
+                        "Write a natural response based on the persona. If this is an automated "
+                        "verification or notification, keep the reply extremely brief or "
+                        "acknowledge the receipt without re-pasting the data."
+                    )
+                }
             ],
             temperature=0.7,
             max_tokens=1024
@@ -165,7 +201,10 @@ class MailerAI:
         Interactive chat interface for users to query the AI regarding recent activities.
         """
         log_context = "\n".join([f"Thread: {log['subject']} | Status: {log['action']}" for log in recent_logs])
-        system_message = f"You are the MAILER AI Bubble. Use this context of recent activities to answer user questions:\n{log_context}"
+        system_message = (
+            f"You are the MAILER AI Bubble. Use this context of recent activities to answer "
+            f"user questions. Always respond using clean Markdown formatting.\n{log_context}"
+        )
 
         completion = self.client.chat.completions.create(
             model=self.model,

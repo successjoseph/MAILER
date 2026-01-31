@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | MAILER</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0F1115; }
@@ -65,6 +66,12 @@
                 <div class="glass-card p-8 rounded-3xl relative overflow-hidden group">
                     <div class="absolute -right-4 -top-4 w-24 h-24 bg-indigo-600/10 blur-3xl rounded-full transition group-hover:bg-indigo-600/20"></div>
                     <h3 class="text-indigo-400 text-xs font-bold uppercase tracking-widest mb-6">Brief Report</h3>
+                    
+                    <div class="mb-6 p-4 bg-white/5 rounded-2xl border border-white/5">
+                        <p id="brief-report-content" class="text-[11px] text-gray-400 leading-relaxed italic ai-message">
+                            {{ report }}
+                        </p>
+                    </div>
                     <div class="space-y-6">
                         <div>
                             <div class="text-5xl font-bold text-white">{{ stats.triaged }}</div>
@@ -141,7 +148,7 @@
     <div id="review-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
         <div class="glass-card w-full max-w-2xl p-8 rounded-[2rem] shadow-2xl border border-white/10">
             <h3 id="modal-subject" class="text-xl font-bold text-white mb-4">Subject</h3>
-            <div id="modal-content" class="bg-black/20 p-6 rounded-2xl text-sm text-gray-400 leading-relaxed max-h-96 overflow-y-auto italic border border-white/5 whitespace-pre-wrap">
+            <div id="modal-content" class="bg-black/20 p-6 rounded-2xl text-sm text-gray-300 leading-relaxed max-h-[60vh] overflow-y-auto whitespace-pre-wrap border border-white/5 scrollbar-thin">
                 Fetching draft from Gmail...
             </div>
             <div class="flex gap-4 mt-6">
@@ -201,7 +208,9 @@
 
             const res = await fetch(`/api/get_draft/${draftId}`);
             const data = await res.json();
-            contentBox.innerText = data.content;
+            const txt = document.createElement("textarea");
+            txt.innerHTML = data.content;
+            contentBox.innerText = txt.value;
         }
 
         modalSendBtn.onclick = async () => {
@@ -235,6 +244,37 @@
             msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${data.response}</div>`;
             msgBox.scrollTop = msgBox.scrollHeight;
         };
+    </script>
+        <script>
+    window.addEventListener('DOMContentLoaded', () => {
+        const reportBox = document.getElementById('brief-report-content');
+        if (reportBox) {
+            reportBox.innerHTML = marked.parse(reportBox.innerText);
+        }
+    });
+
+    // Update the sendBtn.onclick logic to parse AI chat responses
+    sendBtn.onclick = async () => {
+        const query = input.value;
+        if(!query) return;
+        
+        // User message (keep as text)
+        msgBox.innerHTML += `<div class="text-right mb-2"><span class="inline-block text-white font-bold bg-indigo-600/20 px-3 py-2 rounded-2xl">${query}</span></div>`;
+        input.value = '';
+        msgBox.scrollTop = msgBox.scrollHeight;
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ query })
+        });
+        const data = await response.json();
+
+        // FIX: Parse the AI response with marked.parse()
+        const htmlResponse = marked.parse(data.response);
+        msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${htmlResponse}</div>`;
+        msgBox.scrollTop = msgBox.scrollHeight;
+    };
     </script>
 </body>
 </html>
