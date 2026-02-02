@@ -276,5 +276,18 @@
         msgBox.scrollTop = msgBox.scrollHeight;
     };
     </script>
+
+    <script>
+    const chatInput = document.getElementById('chat-input');
+
+    // Send message on Enter, allow Shift+Enter for newline
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();  // Prevent newline
+            sendBtn.click();     // Trigger the same sendBtn.onclick
+        }
+    });
+    </script>
+
 </body>
 </html>
