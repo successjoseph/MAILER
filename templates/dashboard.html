@@ -229,21 +229,23 @@
 
         scanBtn.onclick = () => { scanBtn.innerText = "SCANNING..."; scanBtn.classList.add('animate-pulse'); };
 
-        sendBtn.onclick = async () => {
-            const query = input.value;
-            if(!query) return;
-            msgBox.innerHTML += `<div class="text-right mb-2"><span class="inline-block text-white font-bold bg-indigo-600/20 px-3 py-2 rounded-2xl">${query}</span></div>`;
-            input.value = '';
-            msgBox.scrollTop = msgBox.scrollHeight;
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ query })
-            });
-            const data = await response.json();
-            msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${data.response}</div>`;
-            msgBox.scrollTop = msgBox.scrollHeight;
-        };
+        // sendBtn.onclick = async () => {
+        //     const query = input.value;
+        //     if(!query) return;
+        //     msgBox.innerHTML += `<div class="text-right mb-2"><span class="inline-block text-white font-bold bg-indigo-600/20 px-3 py-2 rounded-2xl">${query}</span></div>`;
+        //     input.value = '';
+        //     msgBox.scrollTop = msgBox.scrollHeight;
+        //     const response = await fetch('/api/chat', {
+        //         method: 'POST',
+        //         headers: {'Content-Type': 'application/json'},
+        //         body: JSON.stringify({ query })
+        //     });
+        //     const data = await response.json();
+        //     msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${data.response}</div>`;
+        //     msgBox.scrollTop = msgBox.scrollHeight;
+        // };
+
+        
     </script>
         <script>
     window.addEventListener('DOMContentLoaded', () => {
@@ -253,31 +255,31 @@
         }
     });
 
-    // Update the sendBtn.onclick logic to parse AI chat responses
-    sendBtn.onclick = async () => {
-        const query = input.value;
-        if(!query) return;
+    // // Update the sendBtn.onclick logic to parse AI chat responses
+    // sendBtn.onclick = async () => {
+    //     const query = input.value;
+    //     if(!query) return;
         
-        // User message (keep as text)
-        msgBox.innerHTML += `<div class="text-right mb-2"><span class="inline-block text-white font-bold bg-indigo-600/20 px-3 py-2 rounded-2xl">${query}</span></div>`;
-        input.value = '';
-        msgBox.scrollTop = msgBox.scrollHeight;
+    //     // User message (keep as text)
+    //     msgBox.innerHTML += `<div class="text-right mb-2"><span class="inline-block text-white font-bold bg-indigo-600/20 px-3 py-2 rounded-2xl">${query}</span></div>`;
+    //     input.value = '';
+    //     msgBox.scrollTop = msgBox.scrollHeight;
 
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ query })
-        });
-        const data = await response.json();
+    //     const response = await fetch('/api/chat', {
+    //         method: 'POST',
+    //         headers: {'Content-Type': 'application/json'},
+    //         body: JSON.stringify({ query })
+    //     });
+    //     const data = await response.json();
 
-        // FIX: Parse the AI response with marked.parse()
-        const htmlResponse = marked.parse(data.response);
-        msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${htmlResponse}</div>`;
-        msgBox.scrollTop = msgBox.scrollHeight;
-    };
+    //     // FIX: Parse the AI response with marked.parse()
+    //     const htmlResponse = marked.parse(data.response);
+    //     msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${htmlResponse}</div>`;
+    //     msgBox.scrollTop = msgBox.scrollHeight;
+    // };
     </script>
 
-    <script>
+    <!-- <script>
     const chatInput = document.getElementById('chat-input');
 
     // Send message on Enter, allow Shift+Enter for newline
@@ -287,7 +289,59 @@
             sendBtn.click();     // Trigger the same sendBtn.onclick
         }
     });
-    </script>
+    </script> -->
+
+    <script>
+    // Parse Brief Report markdown
+    window.addEventListener('DOMContentLoaded', () => {
+        const reportBox = document.getElementById('brief-report-content');
+        if (reportBox) {
+            reportBox.innerHTML = marked.parse(reportBox.innerText);
+        }
+    });
+
+    // AI Chat Elements
+    // const sendBtn = document.getElementById('send-chat');
+    // const input = document.getElementById('chat-input');
+    // const msgBox = document.getElementById('chat-messages');
+
+    async function sendMessage() {
+        const query = input.value.trim();
+        if (!query) return;
+
+        // Add user message
+        msgBox.innerHTML += `<div class="text-right mb-2">
+            <span class="inline-block text-white font-bold bg-indigo-600/20 px-3 py-2 rounded-2xl">${query}</span>
+        </div>`;
+        input.value = '';
+        msgBox.scrollTop = msgBox.scrollHeight;
+
+        // Call backend API
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ query })
+        });
+        const data = await response.json();
+
+        // Add AI response
+        const htmlResponse = marked.parse(data.response);
+        msgBox.innerHTML += `<div class="bg-indigo-500/10 p-3 rounded-2xl border border-indigo-500/20 mb-2 ai-message">${htmlResponse}</div>`;
+        msgBox.scrollTop = msgBox.scrollHeight;
+    }
+
+    // Send button click
+    sendBtn.addEventListener('click', sendMessage);
+
+    // Enter key sends message, Shift+Enter creates newline
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+</script>
+
 
 </body>
 </html>
