@@ -154,38 +154,60 @@ def callback():
 
 # MAILER/app.py
 
+# @app.route('/scan')
+# def scan_emails():
+#     if 'user_id' not in session:
+#         return redirect(url_for('login_page'))
+    
+#     user_config = get_user_config(session['user_id'])
+    
+#     # ERROR PREVENTION: Logic clause to check token existence
+#     if not user_config or not user_config.get('refresh_token'):
+#         # Redirect to auth with forced consent because token is missing
+#         return redirect(url_for('auth_google'))
+    
+#     ai = MailerAI()
+#     try:
+#         threads = fetch_unread_emails(user_config)
+#         for thread in threads:
+#             draft_content = ai.draft_response(user_config.get('manifesto'), thread['body'])
+#             d_id = create_gmail_draft(user_config, thread['id'], draft_content) 
+            
+#             if d_id:
+#                 add_activity_log(
+#                     session['user_id'], 
+#                     thread['subject'], 
+#                     "Inbound Email", 
+#                     "AI Draft Created",
+#                     draft_id=d_id
+#                 )
+#     except Exception as e:
+#         # Catch the RefreshError here if the token is revoked/invalid
+#         return f"Authentication error: {str(e)}. Please try logging in again.", 401
+        
+#     return redirect(url_for('dashboard'))
+
+from engine import process_user_emails
+
 @app.route('/scan')
 def scan_emails():
     if 'user_id' not in session:
         return redirect(url_for('login_page'))
     
-    user_config = get_user_config(session['user_id'])
-    
-    # ERROR PREVENTION: Logic clause to check token existence
+    user_id = session['user_id']
+    user_config = get_user_config(user_id)
+
     if not user_config or not user_config.get('refresh_token'):
-        # Redirect to auth with forced consent because token is missing
         return redirect(url_for('auth_google'))
     
-    ai = MailerAI()
     try:
-        threads = fetch_unread_emails(user_config)
-        for thread in threads:
-            draft_content = ai.draft_response(user_config.get('manifesto'), thread['body'])
-            d_id = create_gmail_draft(user_config, thread['id'], draft_content) 
-            
-            if d_id:
-                add_activity_log(
-                    session['user_id'], 
-                    thread['subject'], 
-                    "Inbound Email", 
-                    "AI Draft Created",
-                    draft_id=d_id
-                )
+        # Reuse the daemon-safe processing function
+        process_user_emails(user_id)
     except Exception as e:
-        # Catch the RefreshError here if the token is revoked/invalid
-        return f"Authentication error: {str(e)}. Please try logging in again.", 401
-        
+        return f"Error scanning emails: {str(e)}", 500
+
     return redirect(url_for('dashboard'))
+
 
 @app.route('/api/chat', methods=['POST'])
 def ai_chat():

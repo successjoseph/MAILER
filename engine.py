@@ -6,6 +6,40 @@ from googleapiclient.discovery import build
 from email.message import EmailMessage
 import base64
 
+import firebase_admin
+from firebase_admin import firestore, credentials
+
+# Initialize Firebase Admin if not already initialized
+if not firebase_admin._apps:
+    if os.path.exists("serviceAccountKey.json"):
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    else:
+        raise Exception("Firebase credentials file 'serviceAccountKey.json' not found.")
+
+db = firestore.client()
+
+def get_user_config(user_id):
+    """
+    Retrieves the user configuration (manifesto, refresh token, etc.) from Firestore.
+    """
+    doc = db.collection('users').document(user_id).get()
+    return doc.to_dict() if doc.exists else None
+
+def add_activity_log(user_id, subject, recipient, action, draft_id=None):
+    """
+    Logs an email-related activity for a user in Firestore.
+    """
+    from datetime import datetime
+    db.collection('activity_logs').add({
+        'user_id': user_id,
+        'subject': subject,
+        'recipient': recipient,
+        'action': action,
+        'draft_id': draft_id,
+        'timestamp': datetime.utcnow()
+    })
+
 load_dotenv()
 
 def fetch_unread_emails(user_config):
@@ -215,3 +249,28 @@ class MailerAI:
             temperature=0.6
         )
         return completion.choices[0].message.content
+    
+def process_user_emails(user_id):
+    """
+    Background-safe function for the daemon:
+    Fetch unread emails, generate AI drafts, and log activity.
+    """
+    user_config = get_user_config(user_id)
+    if not user_config or not user_config.get('refresh_token'):
+        return  # Skip users without a refresh token
+
+    ai = MailerAI()
+    try:
+        threads = fetch_unread_emails(user_config)
+        for thread in threads:
+            draft_content = ai.draft_response(user_config.get('manifesto', ''), thread['body'])
+            d_id = create_gmail_draft(user_config, thread['id'], draft_content)
+            add_activity_log(
+                user_id=user_id,
+                subject=thread['subject'],
+                recipient="Inbound Email",
+                action="AI Draft Created",
+                draft_id=d_id
+            )
+    except Exception as e:
+        print(f"[{user_id}] Error processing emails: {e}")
