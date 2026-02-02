@@ -33,7 +33,7 @@ def fetch_unread_emails(user_config):
     query = f'is:unread category:primary {blacklisted_terms} newer_than:{duration}d'
     
     results = service.users().messages().list(userId='me', q=query).execute()
-    messages = results.get('messages', [])
+    messages = results.get('messages') or []
     
     threads = []
     for msg in messages[:10]:
