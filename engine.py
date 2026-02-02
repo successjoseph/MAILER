@@ -61,7 +61,7 @@ def fetch_unread_emails(user_config):
             'subject': subject,
             'body': get_full_body(first_msg['payload']) or first_msg['snippet'] # Fallback to snippet
         })
-        return threads
+    return threads
 
 def get_full_body(payload):
     """Recursively extracts plain text from Gmail payload."""
