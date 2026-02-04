@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy | MAILER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #0f1115;
+      }
+      .glass {
+        background: rgba(22, 25, 31, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+    </style>
+  </head>
+  <body class="text-gray-200 antialiased selection:bg-indigo-500/30">
+    <nav
+      class="fixed top-0 w-full z-50 border-b border-white/5 bg-[#0F1115]/80 backdrop-blur-md"
+    >
+      <div
+        class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <!-- Link back to home -->
+          <a href="/" class="flex items-center gap-3">
+            <div
+              class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20"
+            >
+              M
+            </div>
+            <span class="font-bold tracking-tight text-xl text-white"
+              >MAILER</span
+            >
+          </a>
+        </div>
+        <a
+          href="/dashboard"
+          class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-indigo-500/10"
+        >
+          GET STARTED
+        </a>
+      </div>
+    </nav>
+
+    <header class="pt-32 pb-12 px-6 max-w-4xl mx-auto text-center">
+      <h1 class="text-4xl md:text-5xl font-bold text-white tracking-tight mb-6">
+        Privacy Policy
+      </h1>
+      <p class="text-gray-400 text-lg">Last updated: February 2026</p>
+    </header>
+
+    <section class="pb-24 px-6">
+      <div class="max-w-4xl mx-auto glass p-8 md:p-12 rounded-2xl space-y-8">
+        <div>
+          <h3 class="text-xl font-bold text-white mb-3">1. Introduction</h3>
+          <p class="text-gray-400 leading-relaxed">
+            At MAILER, we take your privacy seriously. This Privacy Policy
+            explains how we collect, use, and protect your information when you
+            use our AI Email Assistant service. We built MAILER with a "Privacy
+            First" architecture, ensuring minimal data retention.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-bold text-white mb-3">2. Data We Collect</h3>
+          <p class="text-gray-400 leading-relaxed mb-2">
+            <strong>Google Account Information:</strong> When you connect your
+            Gmail account via Google OAuth, we receive your email address and
+            profile information to identify you.
+          </p>
+          <p class="text-gray-400 leading-relaxed">
+            <strong>Email Data:</strong> Our system accesses your unread emails
+            to generate draft replies. We do NOT store the full body of your
+            emails permanently. We transiently process the email content through
+            our AI models (Llama-3.3-70b) and store only a brief summary of the
+            interaction for your "Daily Report."
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-bold text-white mb-3">
+            3. How We Use Your Data
+          </h3>
+          <ul
+            class="list-disc list-inside text-gray-400 leading-relaxed space-y-2"
+          >
+            <li>
+              To draft replies to your unread emails based on your defined
+              "Manifesto" (persona).
+            </li>
+            <li>To provide you with summaries of AI activity.</li>
+            <li>
+              To improve our AI response quality (only with anonymized data, if
+              you opt-in).
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-bold text-white mb-3">
+            4. Data Storage & Security
+          </h3>
+          <p class="text-gray-400 leading-relaxed">
+            All data is encrypted in transit and at rest. We use
+            industry-standard security protocols. Since we rely on LLMs, we
+            ensure that data sent to inference providers is done so under strict
+            data processing agreements that prevent them from training on your
+            personal data.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-bold text-white mb-3">5. Your Controls</h3>
+          <p class="text-gray-400 leading-relaxed">
+            You can revoke MAILER's access to your Gmail account at any time via
+            your Google Security settings or within the MAILER dashboard. You
+            can also delete your account, which will wipe all summaries and
+            configuration data from our servers.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xl font-bold text-white mb-3">6. Contact Us</h3>
+          <p class="text-gray-400 leading-relaxed">
+            If you have any questions about this policy, please contact us at
+            privacy@projectmailer.com.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="py-12 border-t border-white/5 text-center">
+      <p class="text-gray-600 text-xs uppercase tracking-[0.3em]">
+        © 2026 Project Mailer | Llama-3.3-70B Powered
+      </p>
+      <div
+        class="mt-4 flex justify-center gap-6 text-xs font-bold uppercase tracking-widest text-gray-500"
+      >
+        <a href="/privacy" class="hover:text-indigo-400 transition">Privacy</a>
+        <a href="/terms" class="hover:text-indigo-400 transition">Terms</a>
+      </div>
+    </footer>
+  </body>
+</html>
