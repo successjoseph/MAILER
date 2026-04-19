@@ -5,6 +5,7 @@ from firebase_admin import firestore
 from google_auth_oauthlib.flow import Flow
 from database import get_user_config, verify_and_store_user, get_activity_logs, save_user_manifesto, add_activity_log
 from engine import MailerAI, fetch_unread_emails, create_gmail_draft, get_gmail_draft_content, send_gmail_draft
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load variables from .env
 load_dotenv()
@@ -32,6 +33,16 @@ GOOGLE_CLIENT_CONFIG = {
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev_secret_key")
+
+# Tell Flask it is behind a secure reverse proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Enforce strict, production-ready session security
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax'
+)
 
 @app.route('/')
 def index():
