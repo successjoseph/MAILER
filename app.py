@@ -126,6 +126,7 @@ def auth_google():
         prompt=prompt_type
     )
     session['state'] = state
+    session['code_verifier'] = flow.code_verifier
     return redirect(auth_url)
 
 @app.route('/auth/email', methods=['POST'])
@@ -155,6 +156,7 @@ def callback():
         state=session.get('state')
     )
     flow.redirect_uri = url_for('callback', _external=True)
+    flow.code_verifier = session.get('code_verifier')
     flow.fetch_token(authorization_response=request.url)
     
     user_info = verify_and_store_user(flow.credentials) 
