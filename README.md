@@ -1,78 +1,100 @@
-# MAILER: Cloud-Native AI Email Assistant
+# MAILER
 
-![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
-![Model: Llama 3.3 70B](https://img.shields.io/badge/Model-Llama--3.3--70B-orange)
-![Framework: FastAPI](https://img.shields.io/badge/Framework-FastAPI-green)
+![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg) ![Model: Llama 3.3 70B](https://img.shields.io/badge/Model-Llama--3.3--70B-orange) ![Framework: Flask](https://img.shields.io/badge/Framework-Flask-green)
 
-**MAILER** is a sophisticated, privacy-first AI agent designed to revolutionize inbox management through autonomous triaging and contextual drafting. Built as a high-intensity technical laboratory, this project explores the intersection of high-speed inference (Groq), cloud-native automation, and Large Language Model (LLM) management.
+## About
 
----
+MAILER is a Gmail-integrated AI email assistant: a user connects their Gmail account via Google OAuth2, writes a "Manifesto" (free-text instructions describing tone/persona/behavior) and picks a lookback window (24 hours / 3 days / 7 days), and the app fetches their unread primary-inbox emails from that window (filtering out obvious automated/no-reply/newsletter mail), asks Groq's `llama-3.3-70b-versatile` to draft a reply per the Manifesto, and saves each reply as a **Gmail draft** (it does not send automatically). A dashboard lists recent activity, shows AI-generated stats, and includes an "AI Bubble" chat widget that can answer questions about recent activity using Groq with the recent logs as context, plus an on-demand "Brief Report" that summarizes recent activity into an executive-style report. Only lightweight metadata (subject, action taken, draft ID) is stored in Firestore — full email bodies are fetched from Gmail on demand rather than persisted.
 
-## I. Short Description
-MAILER is a cloud-based, AI-driven automation platform designed to revolutionize inbox management through autonomous triaging and contextual drafting. Utilizing a fine-tuned **Llama-3.3-70b** model, the system executes user-defined "Manifestos" to respond to correspondence in real-time, providing users with high-level summaries and an interactive AI interface for seamless oversight.
+**Note on the repo's existing description:** the committed `README.md` describes MAILER as a FastAPI service using LangChain with an autonomous background worker that polls Gmail continuously. The actual code (`app.py`, `engine.py`) is a **Flask** app, calls the Groq SDK directly (no LangChain), and email scanning is **not** a background/scheduled process — it runs only when the user clicks "SCAN NOW" (`GET /scan`), which synchronously fetches, drafts, and logs before redirecting back to the dashboard. The existing README's "Organizational Roles" and "30-Day Sprint" sections describe a planned team/timeline rather than the actual (apparently solo) implementation. This README reflects what the code actually does.
 
-## II. Comprehensive Purpose
-The primary objective of Project **MAILER** is to serve as a high-intensity technical laboratory for mastering the intersection of full-stack web engineering, cloud-native automation, and Large Language Model (LLM) orchestration. This initiative moves beyond theoretical study, challenging the team to architect a secure, production-grade web application that leverages a fine-tuned **Llama-3.3-70b-versatile** model via the **Groq API**.
+## Table of Contents
 
-By constructing **MAILER**, the team will navigate the complexities of real-time data streaming, asynchronous background processing, and secure OAuth2 integration with the Google ecosystem. The project is designed to cultivate expertise in building "Privacy-First" AI systems—utilizing **FastAPI** and **Firestore** to manage user metadata and "Manifesto" logic without the inherent risks of long-term local email storage.
+- [About](#about)
+- [Visuals](#visuals)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [API Documentation](#api-documentation)
+- [Security Notes](#security-notes)
+- [Testing](#testing)
+- [Author and License](#author-and-license)
 
----
+## Visuals
 
-## III. System Operations & Workflow
-The operational lifecycle of **MAILER** is engineered for frictionless, autonomous execution:
+`static/Mailer Hero.png` is a hero image used on the landing page (`templates/index.html`).
 
-1. **Authentication & Identity:** Secure login via **Firebase** to establish a unique user profile in **Firestore**.
-2. **Configuration & The "Manifesto":** Users authorize Google **OAuth2** access and define their "Manifesto"—specialized instructions governing the AI's persona, tone, and response logic.
-3. **Autonomous Background Execution:** A **FastAPI** background worker periodically polls the Google API to identify unread threads within a user-defined lookback window (1–7 days).
-4. **Action & Logging:** Using **LangChain**, the system fetches thread context and requests a draft from **Groq**. The response is sent via **SMTP**, and a lightweight metadata summary is logged in Firestore. No full email bodies are retained.
-5. **Interactive Monitoring:** Users can query the **"AI Bubble"** chat interface for real-time status updates on handled correspondence.
-6. **Persistence & Reporting:** Upon returning to the app, users receive a synthesized **"Brief Report"** of all activity handled during their absence.
+## Prerequisites
 
+- Python 3 with the packages in `requirements.txt`: `flask==3.0.3`, `werkzeug==3.0.3`, `groq==0.5.0`, `httpx==0.27.2`, `gunicorn==22.0.0`, `python-dotenv==1.0.1`, `firebase_admin==6.5.0`, `google-auth-oauthlib==0.8.0`, `google-api-python-client==2.125.0`
+- A Firebase project with Firestore enabled, and either a `serviceAccountKey.json` file (local dev) or a `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable (production, per `database.py`)
+- A Google Cloud OAuth2 client (Web application) with the Gmail API enabled, authorized for the `gmail.modify`, `openid`, `userinfo.email`, and `userinfo.profile` scopes
+- A Groq API key
 
+## Installation
 
----
+```bash
+git clone https://github.com/successjoseph/MAILER.git
+cd MAILER
+pip install -r requirements.txt
+cp .env.example .env   # then fill in real values
+```
 
-## IV. Organizational Roles & Expectations
+## Configuration
 
-| Role | Tech Stack | Expectations |
-| :--- | :--- | :--- |
-| **Project Manager** | GitHub Projects, WhatsApp | Facilitate real-time communication; manage the 30-day sprint; ensure documentation in GitHub Issues. |
-| **Fullstack Developer** | HTML5, Tailwind CSS, JavaScript | Build the Landing Page, Setup Wizard, and "AI Bubble" interface; integrate with the FastAPI backend. |
-| **Backend Developer** | Python, FastAPI, Google OAuth2 | Implement "Read-on-Demand" logic; manage the background scheduler for offline monitoring. |
-| **AI Quality Specialist** | Groq API, LangChain, Llama-3.3-70b | Design the Summary Engine; optimize prompt chains for "Manifesto" adherence. |
-| **Data Engineer** | Firestore, Google Cloud IAM | Manage secure storage of Refresh Tokens and Activity Log schemas; ensure data privacy. |
-| **Automations Engineer** | Vercel, Render, GitHub Actions | Set up CI/CD pipelines; deploy frontend to Vercel and backend to Render. |
+Environment variables, per `.env.example`:
 
----
+| Variable | Purpose |
+|---|---|
+| `FLASK_APP`, `FLASK_ENV` | Standard Flask config |
+| `SECRET_KEY` | Flask session signing key |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google Cloud OAuth2 client credentials |
+| `GOOGLE_REDIRECT_URI` | OAuth2 callback URL (defaults to `http://127.0.0.1:5000/callback` in `app.py` if unset) |
+| `GROQ_API_KEY` | Groq API key used by `MailerAI` in `engine.py` |
+| `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_APP_ID` | Firebase project identifiers |
 
-## V. Implementation Timeline (30-Day Sprint)
+`database.py` additionally reads `FIREBASE_SERVICE_ACCOUNT_JSON` (a JSON string, intended for production hosts like Render) or falls back to a local `serviceAccountKey.json` file — neither is listed in `.env.example` but both are required for Firebase Admin to initialize (the app raises an exception at import time if neither is available). `.gitignore` excludes `.env` and any `*.json` file, so no real credentials are committed.
 
-### **Week 1: Infrastructure & Authentication**
-* Initialization of GitHub Projects board and WhatsApp protocols.
-* Configuration of FastAPI environment and Firebase Authentication.
-* Implementation of Google OAuth2 flow for Refresh Token acquisition.
+## Usage
 
-### **Week 2: Core Logic & AI Integration**
-* Development of "Read-on-Demand" logic via the Google API.
-* Integration of Llama-3.3-70b-versatile via Groq and LangChain.
-* Creation of Firestore schema for user "Manifestos."
+```bash
+flask run
+# or: python app.py
+```
 
-### **Week 3: Automation & Interactive UI**
-* Deployment of background workers for asynchronous drafting.
-* Implementation of the Activity Logging and Summary Engine.
-* Finalization of the "AI Bubble" and User Dashboard.
+Flow: visit `/` (landing page) → `/login` (choose Google OAuth or a simple email-only local login) → `/setup` to write a Manifesto and pick a lookback window (only reachable once logged in) → `/dashboard` shows recent activity, computed stats (triaged/drafts/pending), and an AI-generated brief report → click **SCAN NOW** (`/scan`) to fetch unread mail, generate drafts, and log the results → use the **AI Bubble** chat widget to ask questions about recent activity.
 
-### **Week 4: Deployment & Validation**
-* Integration of the "Absence Report" feature.
-* Orchestration of CI/CD via GitHub Actions to Vercel and Render.
-* Final security audit and technical post-mortem.
+## API Documentation
 
----
+Routes defined in `app.py` (session-based auth via Flask's signed cookie, not a public REST API):
 
-## VI. License & Attribution
-* **License:** This project is licensed under the **Apache License 2.0**.
-* **Model Attribution:** Utilizes **Meta Llama 3.3**, subject to the [Meta Llama 3.3 Community License](https://llama.meta.com/llama3/license/).
+| Method | Path | Description |
+|---|---|---|
+| GET | `/` | Landing page |
+| GET | `/login`, `/auth` | Login/auth page |
+| POST | `/auth/email` | Creates or resumes a local session from just an email address (see Security Notes) |
+| GET | `/auth/google` | Starts the Google OAuth2 consent flow |
+| GET | `/callback` | OAuth2 callback; verifies the ID token and stores the refresh token in Firestore |
+| GET/POST | `/setup` | View/save the user's Manifesto and lookback duration |
+| GET | `/dashboard` | Renders activity logs, stats, and an AI-generated brief report |
+| GET | `/scan` | Fetches unread Gmail threads, drafts AI replies, creates Gmail drafts, logs activity |
+| POST | `/api/chat` | Body `{query}` — "AI Bubble" chat using the last 10 activity logs as context |
+| GET | `/api/get_draft/<draft_id>` | Fetches a specific Gmail draft's content on demand |
+| POST | `/api/send_draft` | Body `{draftId}` — sends a previously created Gmail draft |
+| GET | `/logout` | Clears the session |
 
----
+## Security Notes
 
-> *"The secret of change is to focus all of your energy, not on fighting the old, but on building the new."* > — **Socrates**
+- **`/auth/email` does not check a password.** It reads `email`/`password` from the submitted form but only ever uses the `email` to look up or create a Firestore user document and start a session — the password value is discarded (a code comment reads `# In prod, use hashing!`). As committed, anyone who knows or guesses a user's email can log in as that user through this route. This should be disabled or given real password verification before any real-world use.
+- OAuth refresh tokens are stored directly in Firestore user documents (`database.py`); access to that Firestore project/database should be tightly restricted via security rules and IAM.
+
+## Testing
+
+No automated tests are currently included.
+
+## Author and License
+
+**Author:** [successjoseph](https://github.com/successjoseph)
+
+**License:** Apache License 2.0 (see `LICENSE`). The project also attributes its use of Meta's Llama 3.3 model to the [Meta Llama 3.3 Community License](https://llama.meta.com/llama3/license/).
