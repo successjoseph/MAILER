@@ -63,7 +63,7 @@ flask run
 # or: python app.py
 ```
 
-Flow: visit `/` (landing page) → `/login` (choose Google OAuth or a simple email-only local login) → `/setup` to write a Manifesto and pick a lookback window (only reachable once logged in) → `/dashboard` shows recent activity, computed stats (triaged/drafts/pending), and an AI-generated brief report → click **SCAN NOW** (`/scan`) to fetch unread mail, generate drafts, and log the results → use the **AI Bubble** chat widget to ask questions about recent activity.
+Flow: visit `/` (landing page) → `/login` (Continue with Google) → `/setup` to write a Manifesto and pick a lookback window (only reachable once logged in) → `/dashboard` shows recent activity, computed stats (triaged/drafts/pending), and an AI-generated brief report → click **SCAN NOW** (`/scan`) to fetch unread mail, generate drafts, and log the results → use the **AI Bubble** chat widget to ask questions about recent activity.
 
 ## API Documentation
 
@@ -73,7 +73,6 @@ Routes defined in `app.py` (session-based auth via Flask's signed cookie, not a 
 |---|---|---|
 | GET | `/` | Landing page |
 | GET | `/login`, `/auth` | Login/auth page |
-| POST | `/auth/email` | Creates or resumes a local session from just an email address (see Security Notes) |
 | GET | `/auth/google` | Starts the Google OAuth2 consent flow |
 | GET | `/callback` | OAuth2 callback; verifies the ID token and stores the refresh token in Firestore |
 | GET/POST | `/setup` | View/save the user's Manifesto and lookback duration |
@@ -86,7 +85,7 @@ Routes defined in `app.py` (session-based auth via Flask's signed cookie, not a 
 
 ## Security Notes
 
-- **`/auth/email` does not check a password.** It reads `email`/`password` from the submitted form but only ever uses the `email` to look up or create a Firestore user document and start a session — the password value is discarded (a code comment reads `# In prod, use hashing!`). As committed, anyone who knows or guesses a user's email can log in as that user through this route. This should be disabled or given real password verification before any real-world use.
+- Login is exclusively via Google OAuth2 (`/auth/google` → `/callback`). An earlier `/auth/email` route accepted an email/password form but never actually checked the password, letting anyone log in as any known user's email; it had no corresponding UI (nothing in `templates/auth.html` posted to it) and was removed rather than patched, since the app's core feature (Gmail access) requires a refresh token that only the Google OAuth flow ever obtains.
 - OAuth refresh tokens are stored directly in Firestore user documents (`database.py`); access to that Firestore project/database should be tightly restricted via security rules and IAM.
 
 ## Testing

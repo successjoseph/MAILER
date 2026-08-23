@@ -129,25 +129,6 @@ def auth_google():
     session['code_verifier'] = flow.code_verifier
     return redirect(auth_url)
 
-@app.route('/auth/email', methods=['POST'])
-def auth_email():
-    email = request.form.get('email')
-    password = request.form.get('password') # In prod, use hashing!
-    
-    from database import db
-    user_ref = db.collection('users').where('email', '==', email).limit(1).get()
-    
-    if not user_ref:
-        uid = f"local_{email.split('@')[0]}"
-        user_info = {'uid': uid, 'email': email, 'name': email.split('@')[0]}
-        db.collection('users').document(uid).set(user_info)
-        session['user_id'] = uid
-    else:
-        session['user_id'] = user_ref[0].id
-        
-    session['email'] = email
-    return redirect(url_for('dashboard'))
-
 @app.route('/callback')
 def callback():
     flow = Flow.from_client_config(
